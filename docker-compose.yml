@@ -39,7 +39,7 @@ services:
       - 8.8.8.8
       - 1.1.1.1
     volumes:
-      - vks_data:/app/data
+      - ./data:/app/data
       - ~/.cache/huggingface:/root/.cache/huggingface
     depends_on:
       - mongodb
@@ -54,4 +54,3 @@ services:
 
 volumes:
   mongodb_data:
-  vks_data:
