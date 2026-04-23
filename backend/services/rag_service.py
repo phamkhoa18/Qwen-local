@@ -125,12 +125,16 @@ Hay tra loi dua tren tai lieu phap luat duoc cung cap o tren. Trich dan chinh xa
                 text = ""
                 title = ""
 
-                for field in ["text", "content", "body", "document", "noidung"]:
+                for field in ["text", "content", "content_html", "body", "document", "noidung"]:
                     if field in item and item[field]:
                         text = item[field]
+                        if field == "content_html":
+                            import re
+                            text = re.sub('<[^<]+>', ' ', text).strip()
+                            text = re.sub(r'\s+', ' ', text)
                         break
 
-                for field in ["title", "name", "subject", "ten_van_ban"]:
+                for field in ["title", "name", "subject", "ten_van_ban", "id"]:
                     if field in item and item[field]:
                         title = item[field]
                         break
