@@ -39,6 +39,13 @@ services:
       - vks_data:/app/data
     depends_on:
       - mongodb
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   cloudflared:
     image: cloudflare/cloudflared:latest
