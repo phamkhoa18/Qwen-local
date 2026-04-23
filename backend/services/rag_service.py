@@ -152,16 +152,9 @@ Hay tra loi dua tren tai lieu phap luat duoc cung cap o tren. Trich dan chinh xa
                     self._index_progress["total"] = max_docs
                     print(f"[INFO] Processed {count}/{max_docs} documents, {len(texts)} chunks")
                     
-        except Exception as req_err:
-            print(f"[ERROR] Failed to load dataset: {req_err}")
-            self._index_progress = {"status": "error", "message": str(req_err)}
-            self._indexing = False
-            return self._index_progress
-            
-        if not texts:
-            self._index_progress = {"status": "error", "message": "No documents found"}
-            self._indexing = False
-            return self._index_progress
+            if not texts:
+                self._index_progress = {"status": "error", "message": "No documents found"}
+                return self._index_progress
 
             # Embed and index
             print(f"[INFO] Embedding {len(texts)} chunks...")
