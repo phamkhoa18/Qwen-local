@@ -25,8 +25,8 @@ async def main():
     print("==================================================")
     print(f"📂 Thư mục lưu dữ liệu: {vector_store_dir}\n")
     
-    # Chỉ định số văn bản cần xử lý (VD: 10000)
-    MAX_DOCS = 10000
+    # Chỉ định số văn bản cần xử lý (VD: 200000 để nạp toàn bộ)
+    MAX_DOCS = 200000
     
     result = await rag_service.index_dataset(max_docs=MAX_DOCS)
     
