@@ -1,8 +1,8 @@
 """
 VKS Legal AI Platform - Main Application
-Chatbot phap luat cho Vien Kiem Sat voi RAG + Qwen3
+Auto-loads legal dataset on first startup
 """
-import time
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
@@ -22,6 +22,34 @@ STATIC_DIR = FRONTEND_DIR / "static"
 TEMPLATES_DIR = FRONTEND_DIR / "templates"
 
 
+async def auto_index_background():
+    """Auto-download and index legal dataset in background"""
+    try:
+        print("[AUTO-INDEX] Bắt đầu tải dataset pháp luật từ HuggingFace...")
+        print(f"[AUTO-INDEX] Dataset: {settings.LEGAL_DATASET}")
+        print(f"[AUTO-INDEX] Số lượng tối đa: {settings.AUTO_INDEX_MAX_DOCS}")
+        await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: asyncio.run(rag_service.index_dataset(settings.AUTO_INDEX_MAX_DOCS))
+        )
+    except Exception as e:
+        print(f"[AUTO-INDEX ERROR] {e}")
+        # Try sync version
+        try:
+            import threading
+            def index_sync():
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(rag_service.index_dataset(settings.AUTO_INDEX_MAX_DOCS))
+                loop.close()
+            t = threading.Thread(target=index_sync, daemon=True)
+            t.start()
+            print("[AUTO-INDEX] Đang chạy nền trong thread riêng...")
+        except Exception as e2:
+            print(f"[AUTO-INDEX ERROR] Thread cũng lỗi: {e2}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print(f"""
@@ -39,7 +67,30 @@ async def lifespan(app: FastAPI):
     """)
 
     await db.connect()
-    rag_service.initialize()
+
+    # Load existing vector store
+    loaded = rag_service.initialize()
+
+    # Auto-index if no data exists and auto-index is enabled
+    if not loaded and settings.AUTO_INDEX_ON_STARTUP:
+        print("[INFO] Chưa có dữ liệu pháp luật. Tự động tải và index...")
+        import threading
+        def bg_index():
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(rag_service.index_dataset(settings.AUTO_INDEX_MAX_DOCS))
+            except Exception as e:
+                print(f"[AUTO-INDEX ERROR] {e}")
+            finally:
+                loop.close()
+        t = threading.Thread(target=bg_index, daemon=True)
+        t.start()
+        print("[INFO] Dataset đang được tải nền. Server vẫn hoạt động bình thường.")
+    elif loaded:
+        print(f"[OK] Đã load {rag_service._index_progress.get('total_chunks', 'N/A')} đoạn văn bản pháp luật.")
+
     yield
     await db.disconnect()
 
@@ -61,7 +112,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Ensure static dir exists
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
 

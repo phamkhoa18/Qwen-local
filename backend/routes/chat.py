@@ -1,5 +1,5 @@
 """
-Chat completion routes with RAG - Fixed streaming for Cloudflare
+Chat completion routes with RAG - mode-aware system prompts
 """
 import time
 import json
@@ -30,7 +30,7 @@ async def chat_completions(request: Request, body: ChatCompletionRequest):
             user_message = m["content"]
             break
 
-    # RAG retrieval
+    # RAG retrieval (only when use_rag=True)
     sources = []
     if body.use_rag and user_message and rag_service.is_ready:
         sources = rag_service.retrieve(user_message, settings.TOP_K)
@@ -41,16 +41,19 @@ async def chat_completions(request: Request, body: ChatCompletionRequest):
                     messages[i]["content"] = augmented
                     break
 
-    # Add system prompt
+    # System prompt based on mode:
+    # - use_rag=True → Legal system prompt (RAG mode)
+    # - use_rag=False → General AI prompt (LLM direct mode)
     if not any(m["role"] == "system" for m in messages):
-        messages.insert(0, {"role": "system", "content": settings.SYSTEM_PROMPT})
+        if body.use_rag:
+            messages.insert(0, {"role": "system", "content": settings.SYSTEM_PROMPT})
+        else:
+            messages.insert(0, {"role": "system", "content": settings.SYSTEM_PROMPT_GENERAL})
 
     if body.stream:
         async def generate():
-            # Send sources first
             if sources:
                 yield f"data: {json.dumps({'sources': sources})}\n\n"
-
             async for chunk in ollama_service.chat_stream(
                 messages=messages,
                 model=body.model,

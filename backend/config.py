@@ -45,6 +45,8 @@ class Settings:
     # RAG - Dataset
     LEGAL_DATASET: str = os.getenv("LEGAL_DATASET", "th1nhng0/vietnamese-legal-documents")
     DATASET_CACHE_DIR: str = os.getenv("DATASET_CACHE_DIR", str(BASE_DIR / "data" / "datasets"))
+    AUTO_INDEX_ON_STARTUP: bool = os.getenv("AUTO_INDEX", "true").lower() == "true"
+    AUTO_INDEX_MAX_DOCS: int = int(os.getenv("AUTO_INDEX_MAX_DOCS", "10000"))
 
     # Admin
     ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "admin")
@@ -57,7 +59,7 @@ class Settings:
     API_KEY_PREFIX: str = "vks-"
     API_KEY_LENGTH: int = 48
 
-    # System Prompt for Legal Chatbot
+    # System Prompt - Legal RAG mode
     SYSTEM_PROMPT: str = """Ban la Tro ly AI Phap luat cua Vien Kiem Sat Nhan Dan Viet Nam.
 
 NHIEM VU:
@@ -77,6 +79,11 @@ PHONG CACH TRA LOI:
 - Chia cau tra loi thanh cac phan ro rang
 - Su dung bullet points va danh so khi can thiet
 - Ket thuc bang tom tat va khuyen nghi (neu phu hop)"""
+
+    # System Prompt - General LLM mode (chat anything)
+    SYSTEM_PROMPT_GENERAL: str = """Ban la tro ly AI thong minh, than thien, ho tro nguoi dung bang tieng Viet.
+Ban co the tra loi moi cau hoi, viet code, giai thich khai niem, sang tao noi dung, va tro chuyen tu nhien.
+Tra loi ro rang, chinh xac, co cau truc. Su dung tieng Viet tu nhien."""
 
 
 settings = Settings()
