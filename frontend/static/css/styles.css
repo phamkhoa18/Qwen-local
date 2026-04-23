@@ -138,6 +138,17 @@ input,textarea,select{font-family:inherit;}
 .rag-status{padding:5px 12px;border-radius:var(--radius-full);font-size:11px;font-weight:600;display:flex;align-items:center;gap:5px;}
 .rag-status.ready{background:var(--green-soft);color:var(--green);}
 .rag-status.off{background:var(--bg);color:var(--text-muted);border:1px solid var(--border);}
+.rag-status.indexing{background:rgba(217,119,6,0.08);color:var(--gold);border:1px solid rgba(217,119,6,0.2);}
+
+/* Indexing Banner */
+.indexing-banner{display:none;padding:8px 24px;background:linear-gradient(90deg,rgba(43,125,233,0.06),rgba(99,102,241,0.06));border-bottom:1px solid var(--border);z-index:1;}
+.indexing-banner.show{display:block;}
+.indexing-banner .ib-inner{max-width:800px;margin:0 auto;}
+.indexing-banner .ib-text{font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.indexing-banner .ib-text .spinner{width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.indexing-banner .ib-bar{height:4px;background:var(--border);border-radius:4px;overflow:hidden;}
+.indexing-banner .ib-fill{height:100%;background:var(--accent-gradient);border-radius:4px;transition:width 0.5s ease;width:0%;}
 
 .topbar-action{
   padding:7px 14px;background:var(--bg-white);border:1px solid var(--border);
@@ -216,7 +227,7 @@ input,textarea,select{font-family:inherit;}
 .source-card .sc-score{color:var(--text-muted);font-size:10.5px;margin-top:4px;}
 
 /* Typing */
-.typing{display:none;align-self:flex-start;padding:16px 20px;background:var(--bg-white);border:1px solid var(--border);border-radius:var(--radius);border-bottom-left-radius:6px;box-shadow:var(--shadow-sm);max-width:800px;margin:0 auto;}
+.typing{display:none;padding:16px 20px;background:var(--bg-white);border:1px solid var(--border);border-radius:var(--radius);border-bottom-left-radius:6px;box-shadow:var(--shadow-sm);max-width:120px;margin:8px auto 8px 0;margin-left:calc((100% - 800px) / 2);}
 .typing.show{display:flex;align-items:center;gap:5px;}
 .dot{width:7px;height:7px;background:var(--accent);border-radius:50%;animation:dotB 1.4s ease-in-out infinite;}
 .dot:nth-child(2){animation-delay:.2s;}

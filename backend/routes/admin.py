@@ -45,6 +45,8 @@ async def health_check():
         "default_model": settings.DEFAULT_MODEL,
         "total_legal_chunks": vector_store.total_chunks,
         "uptime_seconds": round(time.time() - _start_time, 1),
+        "indexing": rag_service._indexing,
+        "indexing_progress": rag_service.index_progress,
     }
 
 

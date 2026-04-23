@@ -62,10 +62,36 @@ async function checkHealth() {
     setDot('st-ollama', d.ollama_connected, 'Ollama');
     setDot('st-rag', d.rag_ready, 'RAG');
     const c = document.getElementById('st-chunks'); if (c) c.textContent = `${d.total_legal_chunks} đoạn văn bản`;
+    
+    // Indexing Banner
+    const banner = document.getElementById('idx-banner');
+    if (banner) {
+      if (d.indexing) {
+        banner.classList.add('show');
+        const p = d.indexing_progress || {};
+        let text = 'Đang tự động tải dữ liệu pháp luật...';
+        let pct = 0;
+        if (p.status === 'downloading') text = 'Đang tải dataset từ HuggingFace...';
+        else if (p.status === 'processing' || p.status === 'embedding') {
+          pct = p.total ? Math.round((p.current / p.total) * 100) : 0;
+          text = `Đang phân tích văn bản: ${p.current.toLocaleString()}/${p.total.toLocaleString()} (${pct}%)`;
+        }
+        document.getElementById('idx-text').textContent = text;
+        document.getElementById('idx-fill').style.width = pct + '%';
+        
+        // Poll faster while indexing
+        if (!window.idxPoller) window.idxPoller = setInterval(checkHealth, 3000);
+      } else {
+        banner.classList.remove('show');
+        if (window.idxPoller) { clearInterval(window.idxPoller); window.idxPoller = null; }
+      }
+    }
+
     const b = document.getElementById('rag-badge');
     if (b) {
       if (d.rag_ready) { b.className = 'rag-status ready'; b.innerHTML = `<span class="status-dot on"></span> ${d.total_legal_chunks.toLocaleString()} văn bản sẵn sàng`; }
-      else { b.className = 'rag-status off'; b.innerHTML = `<span class="status-dot off"></span> Đang nạp dữ liệu...`; }
+      else if (d.indexing) { b.className = 'rag-status indexing'; b.innerHTML = `<span class="status-dot on" style="background:var(--gold);box-shadow:none;"></span> Đang nạp...`; }
+      else { b.className = 'rag-status off'; b.innerHTML = `<span class="status-dot off"></span> Chưa có dữ liệu`; }
     }
   } catch (e) { }
 }
