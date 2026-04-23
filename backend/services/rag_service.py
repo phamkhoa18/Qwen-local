@@ -105,7 +105,9 @@ Hay tra loi dua tren tai lieu phap luat duoc cung cap o tren. Trich dan chinh xa
             
             # Tải file parquet trực tiếp, bỏ qua thư viện datasets để tránh lỗi ArrowInvalid trên Linux
             parquet_url = f"https://huggingface.co/datasets/{settings.LEGAL_DATASET}/resolve/main/data/content.parquet"
-            local_parquet = "/app/data/content.parquet"
+            data_dir = os.path.dirname(settings.VECTOR_STORE_PATH) if settings.VECTOR_STORE_PATH else os.path.join(os.getcwd(), "data")
+            os.makedirs(data_dir, exist_ok=True)
+            local_parquet = os.path.join(data_dir, "content.parquet")
             
             if not os.path.exists(local_parquet):
                 print(f"[INFO] Đang tải file parquet từ {parquet_url}...")
