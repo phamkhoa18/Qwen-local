@@ -5,10 +5,10 @@ services:
     image: mongo:7.0
     container_name: vks-mongodb
     restart: always
-    ports:
-      - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
 
   vks-api:
     build: .
@@ -16,11 +16,13 @@ services:
     restart: always
     ports:
       - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - APP_NAME=VKS Legal AI
       - APP_VERSION=2.0.0
       - DEBUG=false
-      - SECRET_KEY=vks-legal-ai-secret-key-production
+      - SECRET_KEY=vks-legal-ai-secret-2024-production
       - MONGODB_URI=mongodb://mongodb:27017
       - MONGODB_DB=vks_legal_ai
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
@@ -29,7 +31,10 @@ services:
       - VECTOR_STORE_PATH=/app/data/vector_store
       - ADMIN_USERNAME=admin
       - ADMIN_PASSWORD=vks@2024
+      - AUTO_INDEX=true
+      - AUTO_INDEX_MAX_DOCS=10000
       - TOP_K=5
+      - SIMILARITY_THRESHOLD=0.35
     volumes:
       - vks_data:/app/data
     depends_on:
