@@ -53,6 +53,11 @@ class VectorStore:
                 with open(self.meta_file, "r", encoding="utf-8") as f:
                     self.metadata = json.load(f)
                 print(f"[OK] Vector store loaded: {self.index.ntotal} chunks")
+                
+                # Eager load the embedding model so it doesn't hang on the first question
+                print("[INFO] Eager loading embedding model to ensure instant response for the first query...")
+                get_embedding_model()
+                
                 return True
         except Exception as e:
             print(f"[WARN] Failed to load vector store: {e}")
