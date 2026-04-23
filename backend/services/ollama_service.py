@@ -76,9 +76,11 @@ class OllamaService:
         if stop:
             payload["options"]["stop"] = stop
 
-        async with httpx.AsyncClient(timeout=600) as client:
-            async with client.stream("POST", f"{self.base_url}/api/chat", json=payload) as response:
-                async for line in response.aiter_lines():
+        try:
+            async with httpx.AsyncClient(timeout=600) as client:
+                async with client.stream("POST", f"{self.base_url}/api/chat", json=payload) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
                     if not line.strip():
                         continue
                     try:
@@ -109,6 +111,17 @@ class OllamaService:
                             break
                     except json.JSONDecodeError:
                         continue
-
+        except Exception as e:
+            error_msg = f"Lỗi kết nối đến Qwen3 (Ollama): {str(e)}"
+            print(f"[ERROR] {error_msg}")
+            error_chunk = json.dumps({
+                "id": chat_id,
+                "object": "chat.completion.chunk",
+                "created": int(time.time()),
+                "model": model,
+                "choices": [{"index": 0, "delta": {"content": f"\n\n**HỆ THỐNG BÁO LỖI:** {error_msg}"}, "finish_reason": "stop"}]
+            })
+            yield f"data: {error_chunk}\n\n"
+            yield "data: [DONE]\n\n"
 
 ollama_service = OllamaService()
