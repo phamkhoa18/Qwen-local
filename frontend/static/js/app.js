@@ -196,7 +196,7 @@ async function doChat(text) {
   const reader = res.body.getReader();
   const dec = new TextDecoder();
   let aMsg = { role: 'assistant', content: '', sources: [], mode: S.mode };
-  S.msgs.push(aMsg); showTyping(false);
+  S.msgs.push(aMsg); showTyping(false); renderMsgs();
 
   let buf = '';
   while (true) {
