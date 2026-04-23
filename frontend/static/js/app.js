@@ -9,7 +9,7 @@ const S = {
   convId: null,
   msgs: [],
   streaming: false,
-  mode: 'rag',
+  mode: 'llm',
 };
 
 // ===== AUTO SETUP (no login) =====
@@ -214,7 +214,16 @@ async function doChat(text) {
         const p = JSON.parse(raw);
         if (p.sources) { aMsg.sources = p.sources; renderMsgs(); continue; }
         const c = p.choices?.[0]?.delta?.content;
-        if (c) { aMsg.content += c; renderMsgs(); }
+        if (c) { 
+          aMsg.content += c; 
+          const bodies = document.querySelectorAll('.msg.assistant .msg-body');
+          if (bodies.length > 0) {
+            bodies[bodies.length - 1].innerHTML = fmtMd(aMsg.content);
+          } else {
+            renderMsgs(); 
+          }
+          scrollDown(); 
+        }
       } catch (e) { }
     }
   }
@@ -365,7 +374,17 @@ function clearAll() { if (!confirm('Xóa tất cả cuộc trò chuyện?')) ret
 // ===== HELPERS =====
 function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function trunc(s, n) { return s && s.length > n ? s.substring(0, n) + '...' : s || ''; }
-function fmtMd(t) { if (!t) return ''; let h = esc(t); h = h.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); h = h.replace(/`([^`]+)`/g, '<code>$1</code>'); h = h.replace(/\n/g, '<br>'); return h; }
+function fmtMd(t) { 
+  if (!t) return ''; 
+  if (typeof marked !== 'undefined') {
+    return marked.parse(t);
+  }
+  let h = esc(t); 
+  h = h.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); 
+  h = h.replace(/`([^`]+)`/g, '<code>$1</code>'); 
+  h = h.replace(/\n/g, '<br>'); 
+  return h; 
+}
 
 // ===== BOOT =====
 document.addEventListener('DOMContentLoaded', () => {

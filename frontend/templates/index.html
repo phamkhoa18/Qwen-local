@@ -57,14 +57,14 @@
     <div class="topbar">
       <div class="topbar-left">
         <div class="mode-tabs" id="mode-tabs">
-          <button class="mode-tab active" data-mode="rag" onclick="setMode('rag')">
+          <button class="mode-tab active" data-mode="llm" onclick="setMode('llm')">
+            <svg class="icon-svg sm"><use href="#i-brain"/></svg> Hỏi AI trực tiếp
+          </button>
+          <button class="mode-tab" data-mode="rag" onclick="setMode('rag')">
             <svg class="icon-svg sm"><use href="#i-book"/></svg> Tra cứu & Hỏi đáp
           </button>
           <button class="mode-tab" data-mode="search" onclick="setMode('search')">
             <svg class="icon-svg sm"><use href="#i-search"/></svg> Tìm kiếm văn bản
-          </button>
-          <button class="mode-tab" data-mode="llm" onclick="setMode('llm')">
-            <svg class="icon-svg sm"><use href="#i-brain"/></svg> Hỏi AI trực tiếp
           </button>
         </div>
         <select class="model-select" id="model-select">
@@ -147,6 +147,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="/static/js/app.js"></script>
 </body>
 </html>
