@@ -168,9 +168,14 @@ function renderMsgs() {
         src = `<div class="sources-panel"><button class="sources-toggle" onclick="toggleSrc(this)"><svg class="icon-svg sm"><use href="#i-book"/></svg> ${m.sources.length} nguồn pháp luật <svg class="icon-svg sm"><use href="#i-chevron"/></svg></button>
         <div class="sources-list">${m.sources.map((s, j) => `<div class="source-card"><div class="sc-head">[${j + 1}] ${esc(s.title || 'Văn bản pháp luật')}</div><div class="sc-body">${esc(trunc(s.content, 300))}</div><div class="sc-score">Độ chính xác: ${(s.score * 100).toFixed(1)}%</div></div>`).join('')}</div></div>`;
       }
+      // Thinking section (Qwen3 reasoning)
+      let thinkHtml = '';
+      if (m.thinking) {
+        thinkHtml = `<div class="thinking-panel"><button class="thinking-toggle" onclick="toggleThink(this)"><span class="think-icon">🧠</span> Quá trình suy luận <svg class="icon-svg sm"><use href="#i-chevron"/></svg></button><div class="thinking-content">${esc(m.thinking)}</div></div>`;
+      }
       const lb = m.mode === 'llm' ? 'AI Trực tiếp' : 'Trợ lý Pháp luật';
       const agentBadge = m.agent ? `<span style="margin-left:8px;padding:2px 8px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:10px;font-size:10px;color:#818cf8;font-weight:600;">🤖 Agent: ${m.agent.intent} · ${m.agent.total_sources} nguồn</span>` : '';
-      return `<div class="msg assistant"><div class="msg-label"><svg class="icon-svg sm"><use href="#i-scales"/></svg> ${lb}${agentBadge}</div><div class="msg-body">${fmtMd(m.content)}</div>${src}</div>`;
+      return `<div class="msg assistant"><div class="msg-label"><svg class="icon-svg sm"><use href="#i-scales"/></svg> ${lb}${agentBadge}</div>${thinkHtml}<div class="msg-body">${fmtMd(m.content)}</div>${src}</div>`;
     }
     return '';
   }).join('');
@@ -211,10 +216,12 @@ async function doChat(text) {
 
   const reader = res.body.getReader();
   const dec = new TextDecoder();
-  let aMsg = { role: 'assistant', content: '', sources: [], mode: S.mode };
+  let aMsg = { role: 'assistant', content: '', thinking: '', sources: [], mode: S.mode };
   S.msgs.push(aMsg); showTyping(false); renderMsgs();
 
   let buf = '';
+  let isThinking = false;
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -229,7 +236,23 @@ async function doChat(text) {
       try {
         const p = JSON.parse(raw);
         if (p.sources) { aMsg.sources = p.sources; if (p.agent) aMsg.agent = p.agent; renderMsgs(); continue; }
-        const c = p.choices?.[0]?.delta?.content;
+
+        const delta = p.choices?.[0]?.delta;
+        if (!delta) continue;
+
+        // Handle thinking mode signals
+        if (delta.role === 'thinking') { isThinking = true; updateThinkingUI(aMsg, true); continue; }
+        if (delta.role === 'answer') { isThinking = false; updateThinkingUI(aMsg, false); continue; }
+
+        // Thinking content (Qwen3 internal reasoning)
+        if (delta.thinking) {
+          aMsg.thinking += delta.thinking;
+          updateThinkingUI(aMsg, true);
+          continue;
+        }
+
+        // Normal answer content
+        const c = delta.content;
         if (c) { 
           aMsg.content += c; 
           const bodies = document.querySelectorAll('.msg.assistant .msg-body');
@@ -243,6 +266,41 @@ async function doChat(text) {
       } catch (e) { }
     }
   }
+}
+
+function updateThinkingUI(msg, isActive) {
+  const panels = document.querySelectorAll('.msg.assistant .thinking-panel');
+  const lastMsg = document.querySelectorAll('.msg.assistant');
+  if (!lastMsg.length) return;
+  const last = lastMsg[lastMsg.length - 1];
+  let panel = last.querySelector('.thinking-panel');
+  
+  if (!panel && msg.thinking) {
+    // Create thinking panel if doesn't exist
+    const label = last.querySelector('.msg-label');
+    if (label) {
+      const div = document.createElement('div');
+      div.className = 'thinking-panel';
+      div.innerHTML = `<button class="thinking-toggle active" onclick="toggleThink(this)"><span class="think-icon">🧠</span> Đang suy luận... <svg class="icon-svg sm"><use href="#i-chevron"/></svg></button><div class="thinking-content open">${esc(msg.thinking)}</div>`;
+      label.insertAdjacentElement('afterend', div);
+    }
+  } else if (panel) {
+    const content = panel.querySelector('.thinking-content');
+    const toggle = panel.querySelector('.thinking-toggle');
+    if (content) content.textContent = msg.thinking;
+    if (!isActive && toggle) {
+      toggle.innerHTML = `<span class="think-icon">🧠</span> Quá trình suy luận <svg class="icon-svg sm"><use href="#i-chevron"/></svg>`;
+      toggle.classList.remove('active');
+      if (content) content.classList.remove('open');
+    }
+  }
+  scrollDown();
+}
+
+function toggleThink(btn) { 
+  const content = btn.nextElementSibling;
+  content.classList.toggle('open'); 
+  btn.classList.toggle('open'); 
 }
 
 async function doSearch(query) {
