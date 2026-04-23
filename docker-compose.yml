@@ -12,16 +12,37 @@ services:
 
   vks-api:
     build: .
-    container_name: vks-legal-ai
+    container_name: vks-api
     restart: always
     ports:
       - "8000:8000"
-    env_file:
-      - .env
+    environment:
+      - APP_NAME=VKS Legal AI
+      - APP_VERSION=2.0.0
+      - DEBUG=false
+      - SECRET_KEY=vks-legal-ai-secret-key-production
+      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_DB=vks_legal_ai
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - DEFAULT_MODEL=qwen3:30b-a3b
+      - EMBEDDING_MODEL=mainguyen9/vietlegal-harrier-0.6b
+      - VECTOR_STORE_PATH=/app/data/vector_store
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=vks@2024
+      - TOP_K=5
+    volumes:
+      - vks_data:/app/data
     depends_on:
       - mongodb
-    volumes:
-      - ./data:/app/data
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: vks-tunnel
+    restart: always
+    command: tunnel --no-autoupdate --url http://vks-api:8000
+    depends_on:
+      - vks-api
 
 volumes:
   mongodb_data:
+  vks_data:

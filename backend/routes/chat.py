@@ -1,8 +1,7 @@
 """
-Chat completion routes with RAG integration
+Chat completion routes with RAG - Fixed streaming for Cloudflare
 """
 import time
-import uuid
 import json
 from datetime import datetime, timezone
 from fastapi import APIRouter, Request, HTTPException
@@ -19,15 +18,12 @@ router = APIRouter()
 
 @router.post("/v1/chat/completions")
 async def chat_completions(request: Request, body: ChatCompletionRequest):
-    """OpenAI-compatible chat completions with RAG"""
     start_time = time.time()
-
-    # Auth
     key_doc = await get_api_key_from_request(request)
 
     messages = [{"role": m.role, "content": m.content} for m in body.messages]
 
-    # Get user's last message for RAG
+    # Get last user message for RAG
     user_message = ""
     for m in reversed(messages):
         if m["role"] == "user":
@@ -38,24 +34,21 @@ async def chat_completions(request: Request, body: ChatCompletionRequest):
     sources = []
     if body.use_rag and user_message and rag_service.is_ready:
         sources = rag_service.retrieve(user_message, settings.TOP_K)
-
         if sources:
-            augmented_query = rag_service.build_rag_prompt(user_message, sources)
-            # Replace the last user message with augmented version
+            augmented = rag_service.build_rag_prompt(user_message, sources)
             for i in range(len(messages) - 1, -1, -1):
                 if messages[i]["role"] == "user":
-                    messages[i]["content"] = augmented_query
+                    messages[i]["content"] = augmented
                     break
 
-    # Add system prompt if not present
+    # Add system prompt
     if not any(m["role"] == "system" for m in messages):
         messages.insert(0, {"role": "system", "content": settings.SYSTEM_PROMPT})
 
     if body.stream:
-        async def stream_with_sources():
-            # Send sources first as a custom event
+        async def generate():
+            # Send sources first
             if sources:
-                source_data = {"sources": sources}
                 yield f"data: {json.dumps({'sources': sources})}\n\n"
 
             async for chunk in ollama_service.chat_stream(
@@ -63,15 +56,20 @@ async def chat_completions(request: Request, body: ChatCompletionRequest):
                 model=body.model,
                 temperature=body.temperature,
                 top_p=body.top_p,
-                max_tokens=body.max_tokens,
+                max_tokens=body.max_tokens or 8192,
                 stop=body.stop,
             ):
                 yield chunk
 
         return StreamingResponse(
-            stream_with_sources(),
+            generate(),
             media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+                "Transfer-Encoding": "chunked",
+            }
         )
 
     # Non-streaming
@@ -80,11 +78,9 @@ async def chat_completions(request: Request, body: ChatCompletionRequest):
         model=body.model,
         temperature=body.temperature,
         top_p=body.top_p,
-        max_tokens=body.max_tokens,
+        max_tokens=body.max_tokens or 8192,
         stop=body.stop,
     )
-
-    # Add sources to response
     if sources:
         result["sources"] = sources
 
@@ -102,7 +98,6 @@ async def chat_completions(request: Request, body: ChatCompletionRequest):
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "endpoint": "/v1/chat/completions",
             "used_rag": bool(sources),
-            "sources_count": len(sources)
         })
     except Exception:
         pass
@@ -112,17 +107,8 @@ async def chat_completions(request: Request, body: ChatCompletionRequest):
 
 @router.get("/v1/models")
 async def list_models():
-    """List available models"""
     models = await ollama_service.list_models()
     return {
         "object": "list",
-        "data": [
-            {
-                "id": m.get("name", m.get("model", "")),
-                "object": "model",
-                "created": 0,
-                "owned_by": "ollama-local"
-            }
-            for m in models
-        ]
+        "data": [{"id": m.get("name", m.get("model", "")), "object": "model", "created": 0, "owned_by": "ollama-local"} for m in models]
     }
