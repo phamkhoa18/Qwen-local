@@ -94,49 +94,61 @@ Hay tra loi dua tren tai lieu phap luat duoc cung cap o tren. Trich dan chinh xa
         self._index_progress = {"status": "downloading", "current": 0, "total": 0}
 
         try:
-            from datasets import load_dataset
+            import pandas as pd
+            import requests
+            import os
             import time
+            import re
 
-            print(f"[INFO] Loading dataset (downloading full dataset to disk first): {settings.LEGAL_DATASET}")
+            print(f"[INFO] Tải trực tiếp dataset file: {settings.LEGAL_DATASET}")
             self._index_progress["status"] = "downloading"
-
-            # Use streaming=False to bypass PyArrow large_string streaming bugs
-            # It will take some time to download but it's much more stable
-            ds = load_dataset(
-                settings.LEGAL_DATASET,
-                "content",
-                split="data",
-                cache_dir=settings.DATASET_CACHE_DIR,
-                streaming=False
-            )
-
+            
+            # Tải file parquet trực tiếp, bỏ qua thư viện datasets để tránh lỗi ArrowInvalid trên Linux
+            parquet_url = f"https://huggingface.co/datasets/{settings.LEGAL_DATASET}/resolve/main/data/content.parquet"
+            local_parquet = "/app/data/content.parquet"
+            
+            if not os.path.exists(local_parquet):
+                print(f"[INFO] Đang tải file parquet từ {parquet_url}...")
+                resp = requests.get(parquet_url, stream=True)
+                resp.raise_for_status()
+                with open(local_parquet, 'wb') as f:
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                print("[INFO] Đã tải xong file parquet.")
+            else:
+                print("[INFO] Đã tìm thấy file parquet cục bộ, đang đọc...")
+                
+            self._index_progress["status"] = "processing"
+            
+            # Đọc bằng engine pyarrow nhưng không ép kiểu string (giữ nguyên large_string)
+            df = pd.read_parquet(local_parquet)
+            
             # Collect documents
             texts = []
             metadatas = []
             count = 0
 
             print("[INFO] Processing documents...")
-            self._index_progress["status"] = "processing"
 
-            for item in ds:
+            for _, row in df.iterrows():
                 if count >= max_docs:
                     break
                     
+                item = row.to_dict()
                 text = ""
                 title = ""
 
                 for field in ["text", "content", "content_html", "body", "document", "noidung"]:
-                    if field in item and item[field]:
-                        text = item[field]
+                    if field in item and item[field] is not None:
+                        text = str(item[field])
                         if field == "content_html":
-                            import re
                             text = re.sub('<[^<]+>', ' ', text).strip()
                             text = re.sub(r'\s+', ' ', text)
                         break
 
                 for field in ["title", "name", "subject", "ten_van_ban", "id"]:
-                    if field in item and item[field]:
-                        title = item[field]
+                    if field in item and item[field] is not None:
+                        title = str(item[field])
                         break
 
                 if not text or len(text) < 50:
