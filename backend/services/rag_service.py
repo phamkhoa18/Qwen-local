@@ -94,90 +94,74 @@ Hay tra loi dua tren tai lieu phap luat duoc cung cap o tren. Trich dan chinh xa
         self._index_progress = {"status": "downloading", "current": 0, "total": 0}
 
         try:
-            import requests
+            from datasets import load_dataset
             import time
 
-            print(f"[INFO] Loading dataset via REST API: {settings.LEGAL_DATASET}")
+            print(f"[INFO] Loading dataset (downloading full dataset to disk first): {settings.LEGAL_DATASET}")
             self._index_progress["status"] = "downloading"
+
+            # Use streaming=False to bypass PyArrow large_string streaming bugs
+            # It will take some time to download but it's much more stable
+            ds = load_dataset(
+                settings.LEGAL_DATASET,
+                "content",
+                split="data",
+                cache_dir=settings.DATASET_CACHE_DIR,
+                streaming=False
+            )
 
             # Collect documents
             texts = []
             metadatas = []
             count = 0
-            offset = 0
-            batch_size = 100
 
             print("[INFO] Processing documents...")
             self._index_progress["status"] = "processing"
 
-            while count < max_docs:
-                url = f"https://datasets-server.huggingface.co/rows?dataset={settings.LEGAL_DATASET.replace('/', '%2F')}&config=content&split=data&offset={offset}&length={batch_size}"
-                
-                try:
-                    resp = requests.get(url, timeout=30)
-                    if resp.status_code != 200:
-                        print(f"[WARN] HF API returned {resp.status_code}: {resp.text}")
-                        # Fallback to metadata config if content fails
-                        if resp.status_code == 404:
-                            url = f"https://datasets-server.huggingface.co/rows?dataset={settings.LEGAL_DATASET.replace('/', '%2F')}&config=default&split=train&offset={offset}&length={batch_size}"
-                            resp = requests.get(url, timeout=30)
-                            if resp.status_code != 200:
-                                break
-                        else:
-                            break
+            for item in ds:
+                if count >= max_docs:
+                    break
                     
-                    data = resp.json()
-                    rows = data.get("rows", [])
-                    if not rows:
+                text = ""
+                title = ""
+
+                for field in ["text", "content", "body", "document", "noidung"]:
+                    if field in item and item[field]:
+                        text = item[field]
                         break
-                        
-                    for row in rows:
-                        if count >= max_docs:
-                            break
-                            
-                        item = row.get("row", {})
-                        
-                        text = ""
-                        title = ""
 
-                        for field in ["text", "content", "body", "document", "noidung"]:
-                            if field in item and item[field]:
-                                text = item[field]
-                                break
+                for field in ["title", "name", "subject", "ten_van_ban"]:
+                    if field in item and item[field]:
+                        title = item[field]
+                        break
 
-                        for field in ["title", "name", "subject", "ten_van_ban"]:
-                            if field in item and item[field]:
-                                title = item[field]
-                                break
-
-                        if not text or len(text) < 50:
-                            continue
-
-                        # Chunk the document
-                        chunks = vector_store.chunk_text(text, title=title, doc_type="legal")
-
-                        for chunk in chunks:
-                            texts.append(chunk["content"])
-                            metadatas.append(chunk)
-
-                        count += 1
-                        
-                    offset += batch_size
-                    if count % 100 == 0:
-                        self._index_progress["current"] = count
-                        self._index_progress["total"] = max_docs
-                        print(f"[INFO] Processed {count}/{max_docs} documents, {len(texts)} chunks")
-                        
-                    time.sleep(0.5) # Rate limit protection
-                    
-                except Exception as req_err:
-                    print(f"[WARN] Request error: {req_err}")
-                    time.sleep(2)
+                if not text or len(text) < 50:
                     continue
 
-            if not texts:
-                self._index_progress = {"status": "error", "message": "No documents found"}
-                return self._index_progress
+                # Chunk the document
+                chunks = vector_store.chunk_text(text, title=title, doc_type="legal")
+
+                for chunk in chunks:
+                    texts.append(chunk["content"])
+                    metadatas.append(chunk)
+
+                count += 1
+                
+                if count % 1000 == 0:
+                    self._index_progress["current"] = count
+                    self._index_progress["total"] = max_docs
+                    print(f"[INFO] Processed {count}/{max_docs} documents, {len(texts)} chunks")
+                    
+        except Exception as req_err:
+            print(f"[ERROR] Failed to load dataset: {req_err}")
+            self._index_progress = {"status": "error", "message": str(req_err)}
+            self._indexing = False
+            return self._index_progress
+            
+        if not texts:
+            self._index_progress = {"status": "error", "message": "No documents found"}
+            self._indexing = False
+            return self._index_progress
 
             # Embed and index
             print(f"[INFO] Embedding {len(texts)} chunks...")
