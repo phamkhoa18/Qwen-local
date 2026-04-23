@@ -11,7 +11,11 @@ os.environ["VECTOR_STORE_PATH"] = vector_store_dir
 os.environ["AUTO_INDEX"] = "false"
 os.environ["EMBEDDING_MODEL"] = "mainguyen9/vietlegal-harrier-0.6b"
 
-# Create directories
+# Create directories and wipe old data
+import shutil
+if os.path.exists(vector_store_dir):
+    print("🧹 Xóa bộ nhớ Vector cũ để nạp lại từ đầu...")
+    shutil.rmtree(vector_store_dir)
 os.makedirs(vector_store_dir, exist_ok=True)
 
 # Add current dir to python path so it can find backend module
