@@ -81,36 +81,36 @@ class OllamaService:
                 async with client.stream("POST", f"{self.base_url}/api/chat", json=payload) as response:
                     response.raise_for_status()
                     async for line in response.aiter_lines():
-                    if not line.strip():
-                        continue
-                    try:
-                        data = json.loads(line)
-                        content = data.get("message", {}).get("content", "")
-                        done = data.get("done", False)
+                        if not line.strip():
+                            continue
+                        try:
+                            data = json.loads(line)
+                            content = data.get("message", {}).get("content", "")
+                            done = data.get("done", False)
 
-                        if content:
-                            chunk = json.dumps({
-                                "id": chat_id,
-                                "object": "chat.completion.chunk",
-                                "created": int(time.time()),
-                                "model": model,
-                                "choices": [{"index": 0, "delta": {"content": content}, "finish_reason": None}]
-                            })
-                            yield f"data: {chunk}\n\n"
+                            if content:
+                                chunk = json.dumps({
+                                    "id": chat_id,
+                                    "object": "chat.completion.chunk",
+                                    "created": int(time.time()),
+                                    "model": model,
+                                    "choices": [{"index": 0, "delta": {"content": content}, "finish_reason": None}]
+                                })
+                                yield f"data: {chunk}\n\n"
 
-                        if done:
-                            final = json.dumps({
-                                "id": chat_id,
-                                "object": "chat.completion.chunk",
-                                "created": int(time.time()),
-                                "model": model,
-                                "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]
-                            })
-                            yield f"data: {final}\n\n"
-                            yield "data: [DONE]\n\n"
-                            break
-                    except json.JSONDecodeError:
-                        continue
+                            if done:
+                                final = json.dumps({
+                                    "id": chat_id,
+                                    "object": "chat.completion.chunk",
+                                    "created": int(time.time()),
+                                    "model": model,
+                                    "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]
+                                })
+                                yield f"data: {final}\n\n"
+                                yield "data: [DONE]\n\n"
+                                break
+                        except json.JSONDecodeError:
+                            continue
         except Exception as e:
             error_msg = f"Lỗi kết nối đến Qwen3 (Ollama): {str(e)}"
             print(f"[ERROR] {error_msg}")
