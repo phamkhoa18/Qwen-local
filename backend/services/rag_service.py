@@ -103,7 +103,7 @@ Hay tra loi dua tren tai lieu phap luat duoc cung cap o tren. Trich dan chinh xa
             ds = load_dataset(
                 settings.LEGAL_DATASET,
                 "content",
-                split="train",
+                split="data",
                 cache_dir=settings.DATASET_CACHE_DIR,
                 streaming=True
             )
