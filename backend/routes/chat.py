@@ -145,6 +145,25 @@ Câu hỏi đã viết lại:"""
     return result
 
 
+@router.post("/v1/documents/search")
+async def search_documents(request: Request, body: ChatCompletionRequest):
+    """Fast vector search without LLM generation"""
+    start_time = time.time()
+    await get_api_key_from_request(request)
+    
+    query = ""
+    for m in reversed(body.messages):
+        if m.role == "user":
+            query = m.content
+            break
+            
+    if not query:
+        raise HTTPException(status_code=400, detail="Missing query")
+        
+    sources = rag_service.retrieve(query, settings.TOP_K)
+    return {"sources": sources, "query": query, "time_ms": int((time.time() - start_time) * 1000)}
+
+
 @router.get("/v1/models")
 async def list_models():
     models = await ollama_service.list_models()

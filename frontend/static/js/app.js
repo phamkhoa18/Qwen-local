@@ -212,7 +212,7 @@ async function doChat(text) {
       if (raw === '[DONE]') continue;
       try {
         const p = JSON.parse(raw);
-        if (p.sources) { aMsg.sources = p.sources; continue; }
+        if (p.sources) { aMsg.sources = p.sources; renderMsgs(); continue; }
         const c = p.choices?.[0]?.delta?.content;
         if (c) { aMsg.content += c; renderMsgs(); }
       } catch (e) { }
@@ -221,9 +221,9 @@ async function doChat(text) {
 }
 
 async function doSearch(query) {
-  const res = await fetch('/v1/chat/completions', {
+  const res = await fetch('/v1/documents/search', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${S.apiKey}` },
-    body: JSON.stringify({ model: document.getElementById('model-select')?.value || 'qwen3:30b-a3b', messages: [{ role: 'user', content: query }], stream: false, use_rag: true, temperature: 0.1, max_tokens: 100 })
+    body: JSON.stringify({ messages: [{ role: 'user', content: query }] })
   });
   if (!res.ok) { const e = await res.json(); throw new Error(e.detail?.error?.message || `Lỗi ${res.status}`); }
   const data = await res.json(); showTyping(false);
