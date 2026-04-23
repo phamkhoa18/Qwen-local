@@ -14,7 +14,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 class Settings:
     # App
     APP_NAME: str = os.getenv("APP_NAME", "VKS Legal AI")
-    APP_VERSION: str = os.getenv("APP_VERSION", "2.0.0")
+    APP_VERSION: str = os.getenv("APP_VERSION", "3.0.0")
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     SECRET_KEY: str = os.getenv("SECRET_KEY", "vks-secret-key-change-in-production")
 
@@ -30,6 +30,11 @@ class Settings:
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     DEFAULT_MODEL: str = os.getenv("DEFAULT_MODEL", "qwen3:30b-a3b")
 
+    # OpenRouter (Multi-LLM Cloud)
+    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
+    OPENROUTER_BASE_URL: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+    OPENROUTER_DEFAULT_MODEL: str = os.getenv("OPENROUTER_DEFAULT_MODEL", "google/gemini-2.5-flash")
+
     # RAG - Embedding Model
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "mainguyen9/vietlegal-harrier-0.6b")
     EMBEDDING_DIM: int = 1024  # harrier-0.6b outputs 1024-dim vectors
@@ -37,10 +42,19 @@ class Settings:
 
     # RAG - Vector Store
     VECTOR_STORE_PATH: str = os.getenv("VECTOR_STORE_PATH", str(BASE_DIR / "data" / "vector_store"))
-    CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "500"))
-    CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "50"))
-    TOP_K: int = int(os.getenv("TOP_K", "5"))
-    SIMILARITY_THRESHOLD: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.35"))
+    CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1200"))
+    CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "100"))
+    TOP_K: int = int(os.getenv("TOP_K", "8"))
+    SIMILARITY_THRESHOLD: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.40"))
+
+    # Hybrid Search
+    BM25_WEIGHT: float = float(os.getenv("BM25_WEIGHT", "0.4"))
+    VECTOR_WEIGHT: float = float(os.getenv("VECTOR_WEIGHT", "0.6"))
+    RRF_K: int = 60  # Reciprocal Rank Fusion constant
+
+    # Agentic RAG
+    AGENT_MAX_STEPS: int = int(os.getenv("AGENT_MAX_STEPS", "5"))
+    AGENT_ENABLED: bool = os.getenv("AGENT_ENABLED", "true").lower() == "true"
 
     # RAG - Dataset
     LEGAL_DATASET: str = os.getenv("LEGAL_DATASET", "th1nhng0/vietnamese-legal-documents")

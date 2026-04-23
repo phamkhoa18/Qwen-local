@@ -99,7 +99,22 @@ function setDot(id, ok, label) { const el = document.getElementById(id); if (el)
 
 async function loadModels() {
   try { const r = await fetch('/v1/models'); const d = await r.json(); const sel = document.getElementById('model-select');
-    if (sel && d.data?.length) sel.innerHTML = d.data.map(m => `<option value="${m.id}">${m.id}</option>`).join('');
+    if (sel && d.data?.length) {
+      const local = d.data.filter(m => m.provider === 'local' || !m.provider);
+      const cloud = d.data.filter(m => m.provider === 'cloud');
+      let html = '';
+      if (local.length) {
+        html += '<optgroup label="🖥️ Local (Ollama)">';
+        html += local.map(m => `<option value="${m.id}">${m.id}</option>`).join('');
+        html += '</optgroup>';
+      }
+      if (cloud.length) {
+        html += '<optgroup label="☁️ Cloud (OpenRouter)">';
+        html += cloud.map(m => `<option value="${m.id}">${m.display_name || m.id}</option>`).join('');
+        html += '</optgroup>';
+      }
+      sel.innerHTML = html || d.data.map(m => `<option value="${m.id}">${m.id}</option>`).join('');
+    }
   } catch (e) { }
 }
 
@@ -154,7 +169,8 @@ function renderMsgs() {
         <div class="sources-list">${m.sources.map((s, j) => `<div class="source-card"><div class="sc-head">[${j + 1}] ${esc(s.title || 'Văn bản pháp luật')}</div><div class="sc-body">${esc(trunc(s.content, 300))}</div><div class="sc-score">Độ chính xác: ${(s.score * 100).toFixed(1)}%</div></div>`).join('')}</div></div>`;
       }
       const lb = m.mode === 'llm' ? 'AI Trực tiếp' : 'Trợ lý Pháp luật';
-      return `<div class="msg assistant"><div class="msg-label"><svg class="icon-svg sm"><use href="#i-scales"/></svg> ${lb}</div><div class="msg-body">${fmtMd(m.content)}</div>${src}</div>`;
+      const agentBadge = m.agent ? `<span style="margin-left:8px;padding:2px 8px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:10px;font-size:10px;color:#818cf8;font-weight:600;">🤖 Agent: ${m.agent.intent} · ${m.agent.total_sources} nguồn</span>` : '';
+      return `<div class="msg assistant"><div class="msg-label"><svg class="icon-svg sm"><use href="#i-scales"/></svg> ${lb}${agentBadge}</div><div class="msg-body">${fmtMd(m.content)}</div>${src}</div>`;
     }
     return '';
   }).join('');
@@ -212,7 +228,7 @@ async function doChat(text) {
       if (raw === '[DONE]') continue;
       try {
         const p = JSON.parse(raw);
-        if (p.sources) { aMsg.sources = p.sources; renderMsgs(); continue; }
+        if (p.sources) { aMsg.sources = p.sources; if (p.agent) aMsg.agent = p.agent; renderMsgs(); continue; }
         const c = p.choices?.[0]?.delta?.content;
         if (c) { 
           aMsg.content += c; 

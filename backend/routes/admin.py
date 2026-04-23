@@ -13,6 +13,7 @@ from backend.config import settings
 from backend.services.ollama_service import ollama_service
 from backend.services.rag_service import rag_service
 from backend.services.vector_store import vector_store
+from backend.services.openrouter_service import openrouter_service
 
 router = APIRouter(prefix="/admin")
 
@@ -47,6 +48,9 @@ async def health_check():
         "uptime_seconds": round(time.time() - _start_time, 1),
         "indexing": rag_service._indexing,
         "indexing_progress": rag_service.index_progress,
+        "openrouter_configured": openrouter_service.is_configured,
+        "agent_enabled": settings.AGENT_ENABLED,
+        "search_mode": "hybrid (FAISS + BM25 + RRF)",
     }
 
 
