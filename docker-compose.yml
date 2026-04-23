@@ -31,8 +31,8 @@ services:
       - VECTOR_STORE_PATH=/app/data/vector_store
       - ADMIN_USERNAME=admin
       - ADMIN_PASSWORD=vks@2024
-      - AUTO_INDEX=true
-      - AUTO_INDEX_MAX_DOCS=10000
+      - AUTO_INDEX=false
+      - AUTO_INDEX_MAX_DOCS=200000
       - TOP_K=5
       - SIMILARITY_THRESHOLD=0.35
     dns:
