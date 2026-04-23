@@ -35,8 +35,12 @@ services:
       - AUTO_INDEX_MAX_DOCS=10000
       - TOP_K=5
       - SIMILARITY_THRESHOLD=0.35
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     volumes:
       - vks_data:/app/data
+      - ~/.cache/huggingface:/root/.cache/huggingface
     depends_on:
       - mongodb
 
