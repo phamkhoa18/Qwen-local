@@ -33,7 +33,44 @@ async def chat_completions(request: Request, body: ChatCompletionRequest):
     # RAG retrieval (only when use_rag=True)
     sources = []
     if body.use_rag and user_message and rag_service.is_ready:
-        sources = rag_service.retrieve(user_message, settings.TOP_K)
+        search_query = user_message
+        
+        # --- BƯỚC MỚI: QUERY REFORMULATION (Biến đổi câu hỏi) ---
+        # Nếu có lịch sử chat (nhiều hơn 1 tin nhắn), dùng AI để viết lại câu hỏi cho chuẩn ngữ cảnh
+        if len(messages) > 1:
+            try:
+                # Lấy 4 tin nhắn gần nhất để làm ngữ cảnh
+                history_context = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in messages[-5:-1]])
+                rewrite_prompt = f"""Bạn là một trợ lý AI thông minh. Nhiệm vụ của bạn là đọc lịch sử trò chuyện và viết lại câu hỏi cuối cùng của người dùng thành một câu hỏi DUY NHẤT, đầy đủ ngữ cảnh, rõ nghĩa và độc lập để dùng làm từ khóa tìm kiếm trong thư viện pháp luật.
+KHÔNG được trả lời câu hỏi. CHỈ xuất ra câu hỏi đã được viết lại.
+
+Lịch sử trò chuyện:
+{history_context}
+
+Câu hỏi cuối của người dùng: {user_message}
+
+Câu hỏi đã viết lại:"""
+                
+                print(f"[RAG] Đang viết lại câu hỏi để tìm kiếm...")
+                rewrite_res = await ollama_service.chat(
+                    messages=[{"role": "user", "content": rewrite_prompt}],
+                    model=body.model,
+                    temperature=0.1,
+                    max_tokens=100
+                )
+                
+                if rewrite_res and "choices" in rewrite_res and len(rewrite_res["choices"]) > 0:
+                    rewritten = rewrite_res["choices"][0]["message"]["content"].strip()
+                    # Loại bỏ ngoặc kép nếu AI sinh ra
+                    rewritten = rewritten.strip('"').strip("'")
+                    if rewritten and len(rewritten) > 5:
+                        search_query = rewritten
+                        print(f"[RAG] Đổi câu hỏi: '{user_message}' -> '{search_query}'")
+            except Exception as e:
+                print(f"[WARN] Lỗi khi viết lại câu hỏi: {e}")
+        # ---------------------------------------------------------
+
+        sources = rag_service.retrieve(search_query, settings.TOP_K)
         if sources:
             augmented = rag_service.build_rag_prompt(user_message, sources)
             for i in range(len(messages) - 1, -1, -1):
