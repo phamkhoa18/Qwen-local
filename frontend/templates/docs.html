@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VKS Legal AI — API Documentation</title>
+  <meta name="description" content="Tài liệu kỹ thuật API cho VKS Legal AI Platform. Hướng dẫn kết nối, tích hợp, và triển khai.">
+  <link rel="stylesheet" href="/static/css/docs.css">
+</head>
+<body>
+<!-- MOBILE TOGGLE -->
+<button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
+
+<div class="docs-layout">
+  <!-- SIDEBAR -->
+  <aside class="docs-sidebar">
+    <div class="docs-sidebar-header">
+      <a href="/" class="docs-logo">
+        <div class="docs-logo-icon">⚖️</div>
+        <div class="docs-logo-text">
+          <h2>VKS Legal AI</h2>
+          <span>Documentation</span>
+        </div>
+      </a>
+    </div>
+    <nav class="docs-nav">
+      <div class="docs-nav-section">
+        <div class="docs-nav-title">Bắt đầu</div>
+        <a href="#overview" class="docs-nav-link active"><span class="nav-icon">📖</span> Tổng quan</a>
+        <a href="#auth" class="docs-nav-link"><span class="nav-icon">🔐</span> Xác thực</a>
+        <a href="#quickstart" class="docs-nav-link"><span class="nav-icon">⚡</span> Quick Start</a>
+      </div>
+      <div class="docs-nav-section">
+        <div class="docs-nav-title">API Endpoints</div>
+        <a href="#chat" class="docs-nav-link"><span class="nav-icon">💬</span> Chat Completions</a>
+        <a href="#search" class="docs-nav-link"><span class="nav-icon">🔍</span> Document Search</a>
+        <a href="#models" class="docs-nav-link"><span class="nav-icon">🤖</span> List Models</a>
+        <a href="#admin-api" class="docs-nav-link"><span class="nav-icon">🛡️</span> Admin API</a>
+      </div>
+      <div class="docs-nav-section">
+        <div class="docs-nav-title">Tích hợp</div>
+        <a href="#python" class="docs-nav-link"><span class="nav-icon">🐍</span> Python</a>
+        <a href="#javascript" class="docs-nav-link"><span class="nav-icon">🌐</span> JavaScript</a>
+        <a href="#curl" class="docs-nav-link"><span class="nav-icon">📟</span> cURL</a>
+        <a href="#openai-sdk" class="docs-nav-link"><span class="nav-icon">🔗</span> OpenAI SDK</a>
+      </div>
+      <div class="docs-nav-section">
+        <div class="docs-nav-title">Nâng cao</div>
+        <a href="#errors" class="docs-nav-link"><span class="nav-icon">⚠️</span> Error Handling</a>
+        <a href="#rate-limit" class="docs-nav-link"><span class="nav-icon">🚦</span> Rate Limiting</a>
+        <a href="#architecture" class="docs-nav-link"><span class="nav-icon">🏗️</span> Kiến trúc</a>
+      </div>
+    </nav>
+    <div class="docs-sidebar-footer">
+      <a href="/" class="docs-back-link">← Quay lại ứng dụng</a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="docs-main">
+    <!-- HERO -->
+    <div class="docs-hero">
+      <div class="hero-badge">📘 API Documentation v3.0</div>
+      <h1>VKS Legal AI <span class="gradient-text">API Reference</span></h1>
+      <p>Tài liệu kỹ thuật đầy đủ để kết nối, tích hợp API Trợ lý Pháp luật AI cho Viện Kiểm Sát Nhân Dân Việt Nam.</p>
+    </div>
+
+    <div class="docs-content">
+
+      <!-- ===== OVERVIEW ===== -->
+      <h2 id="overview">Tổng Quan</h2>
+      <p>VKS Legal AI cung cấp REST API tương thích chuẩn <strong>OpenAI</strong>, hỗ trợ tra cứu pháp luật Việt Nam với hệ thống <strong>Agentic RAG</strong> (Hybrid Search + Multi-step Reasoning).</p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="fc-icon">🔍</div>
+          <h4>Hybrid Search</h4>
+          <p>BM25 keyword + FAISS vector + RRF Fusion cho kết quả chính xác nhất.</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">🤖</div>
+          <h4>Agentic RAG</h4>
+          <p>Agent tự phân loại, tìm kiếm đa bước, tham chiếu chéo điều luật.</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">🌐</div>
+          <h4>Multi-LLM</h4>
+          <p>Qwen3 local + OpenRouter cloud (Claude, GPT-4o, Gemini).</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">📡</div>
+          <h4>OpenAI Compatible</h4>
+          <p>Tích hợp ngay với bất kỳ client OpenAI nào có sẵn.</p>
+        </div>
+      </div>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div><strong>Base URL:</strong> Tất cả API đều bắt đầu bằng domain/IP của server. Ví dụ: <code class="inline-code">https://your-server.com/v1/chat/completions</code></div>
+      </div>
+
+      <!-- ===== AUTH ===== -->
+      <h2 id="auth">Xác Thực (Authentication)</h2>
+      <p>Tất cả API yêu cầu <strong>API Key</strong> trong header:</p>
+
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">HTTP Header</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+        <pre>Authorization: Bearer vks-xxxxxxxxxxxx</pre>
+      </div>
+
+      <p>API Key được tạo qua giao diện quản trị hoặc API admin. Xem phần <a href="#admin-api">Admin API</a> để biết cách tạo key.</p>
+
+      <!-- ===== QUICKSTART ===== -->
+      <h2 id="quickstart">Quick Start</h2>
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h4>Lấy API Key</h4>
+            <p>Truy cập giao diện chính → Quản lý API Keys → Tạo khóa mới</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h4>Gửi request đầu tiên</h4>
+            <p>Dùng cURL, Python hoặc bất kỳ HTTP client nào</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h4>Nhận kết quả</h4>
+            <p>Câu trả lời pháp luật kèm trích dẫn nguồn chính xác</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">cURL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+        <pre>curl -X POST https://your-server.com/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer vks-YOUR_API_KEY" \
+  -d '{
+    "model": "qwen3:30b-a3b",
+    "messages": [{"role": "user", "content": "Phân tích Điều 173 BLHS 2015"}],
+    "use_rag": true,
+    "stream": false
+  }'</pre>
+      </div>
+
+      <!-- ===== CHAT ===== -->
+      <h2 id="chat">Chat Completions</h2>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleEndpoint(this)">
+          <span class="method-badge post">POST</span>
+          <span class="endpoint-path">/v1/chat/completions</span>
+          <span class="endpoint-desc">Hỏi đáp pháp luật / Chat AI</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Endpoint chính cho chat. Hỗ trợ 2 chế độ:</p>
+          <ul>
+            <li><code class="inline-code">use_rag: true</code> — Tra cứu pháp luật (Agentic RAG + Hybrid Search)</li>
+            <li><code class="inline-code">use_rag: false</code> — Chat AI trực tiếp (không RAG)</li>
+          </ul>
+
+          <h4>Request Body</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Tham số</th><th>Kiểu</th><th>Bắt buộc</th><th>Mô tả</th></tr></thead>
+              <tbody>
+                <tr><td><code class="inline-code">model</code></td><td>string</td><td><span class="badge required">required</span></td><td>ID model (vd: <code class="inline-code">qwen3:30b-a3b</code>)</td></tr>
+                <tr><td><code class="inline-code">messages</code></td><td>array</td><td><span class="badge required">required</span></td><td>Mảng tin nhắn [{role, content}]</td></tr>
+                <tr><td><code class="inline-code">use_rag</code></td><td>boolean</td><td><span class="badge optional">optional</span></td><td>Bật tra cứu pháp luật (default: true)</td></tr>
+                <tr><td><code class="inline-code">stream</code></td><td>boolean</td><td><span class="badge optional">optional</span></td><td>Streaming response (default: false)</td></tr>
+                <tr><td><code class="inline-code">temperature</code></td><td>float</td><td><span class="badge optional">optional</span></td><td>0.0-2.0 (default: 0.3)</td></tr>
+                <tr><td><code class="inline-code">max_tokens</code></td><td>integer</td><td><span class="badge optional">optional</span></td><td>Số token tối đa (default: 8192)</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Response (non-streaming)</h4>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">JSON</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+            <pre>{
+  "id": "chatcmpl-abc123",
+  "model": "qwen3:30b-a3b",
+  "choices": [{
+    "index": 0,
+    "message": {
+      "role": "assistant",
+      "content": "Theo Điều 173 BLHS 2015..."
+    },
+    "finish_reason": "stop"
+  }],
+  "sources": [
+    {
+      "title": "Bộ luật Hình sự 2015",
+      "article": "Điều 173",
+      "content": "Tội trộm cắp tài sản...",
+      "score": 0.89
+    }
+  ],
+  "agent": {
+    "intent": "LOOKUP",
+    "steps": [{"step": "Hybrid Search", "found": 5}],
+    "total_sources": 5
+  }
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SEARCH ===== -->
+      <h2 id="search">Document Search</h2>
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleEndpoint(this)">
+          <span class="method-badge post">POST</span>
+          <span class="endpoint-path">/v1/documents/search</span>
+          <span class="endpoint-desc">Tìm kiếm văn bản pháp luật (không qua LLM)</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Tìm kiếm nhanh trong 178K+ văn bản pháp luật bằng Hybrid Search (BM25 + Vector). Không gọi LLM, trả kết quả ngay.</p>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">cURL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+            <pre>curl -X POST /v1/documents/search \
+  -H "Authorization: Bearer vks-YOUR_KEY" \
+  -d '{"messages": [{"role": "user", "content": "Điều 173 BLHS"}]}'</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== MODELS ===== -->
+      <h2 id="models">List Models</h2>
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleEndpoint(this)">
+          <span class="method-badge get">GET</span>
+          <span class="endpoint-path">/v1/models</span>
+          <span class="endpoint-desc">Danh sách model local + cloud</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Trả về danh sách model từ Ollama (local) và OpenRouter (cloud). Không cần authentication.</p>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">Response</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+            <pre>{
+  "object": "list",
+  "data": [
+    {"id": "qwen3:30b-a3b", "owned_by": "ollama-local", "provider": "local"},
+    {"id": "google/gemini-2.5-flash", "owned_by": "openrouter-google", "provider": "cloud"}
+  ]
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ADMIN ===== -->
+      <h2 id="admin-api">Admin API</h2>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleEndpoint(this)">
+          <span class="method-badge post">POST</span>
+          <span class="endpoint-path">/admin/login</span>
+          <span class="endpoint-desc">Đăng nhập admin, lấy JWT token</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">cURL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+            <pre>curl -X POST /admin/login \
+  -d '{"username": "admin", "password": "your_password"}'</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleEndpoint(this)">
+          <span class="method-badge get">GET</span>
+          <span class="endpoint-path">/admin/health</span>
+          <span class="endpoint-desc">Health check (Ollama, MongoDB, RAG, Agent)</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">Response</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+            <pre>{
+  "status": "ok",
+  "ollama_connected": true,
+  "rag_ready": true,
+  "total_legal_chunks": 178000,
+  "openrouter_configured": true,
+  "agent_enabled": true,
+  "search_mode": "hybrid (FAISS + BM25 + RRF)"
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleEndpoint(this)">
+          <span class="method-badge post">POST</span>
+          <span class="endpoint-path">/admin/api-keys</span>
+          <span class="endpoint-desc">Tạo API key mới</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Yêu cầu JWT token (từ <code class="inline-code">/admin/login</code>).</p>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">cURL</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+            <pre>curl -X POST /admin/api-keys \
+  -H "Authorization: Bearer JWT_TOKEN" \
+  -d '{"name": "My App", "rate_limit": 60}'</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== PYTHON ===== -->
+      <h2 id="python">Tích Hợp Python</h2>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">Python</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+        <pre>import requests
+
+API_URL = "https://your-server.com"
+API_KEY = "vks-YOUR_API_KEY"
+
+response = requests.post(f"{API_URL}/v1/chat/completions", 
+    headers={"Authorization": f"Bearer {API_KEY}"},
+    json={
+        "model": "qwen3:30b-a3b",
+        "messages": [{"role": "user", "content": "Điều 173 BLHS 2015?"}],
+        "use_rag": True
+    })
+
+data = response.json()
+print(data["choices"][0]["message"]["content"])
+
+# In nguồn tham khảo
+for src in data.get("sources", []):
+    print(f"  📄 {src['title']} - {src['article']} ({src['score']:.0%})")</pre>
+      </div>
+
+      <!-- ===== JAVASCRIPT ===== -->
+      <h2 id="javascript">Tích Hợp JavaScript</h2>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">JavaScript (Streaming)</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+        <pre>const response = await fetch('/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer vks-YOUR_API_KEY'
+  },
+  body: JSON.stringify({
+    model: 'qwen3:30b-a3b',
+    messages: [{ role: 'user', content: 'Tội trộm cắp tài sản?' }],
+    use_rag: true,
+    stream: true
+  })
+});
+
+const reader = response.body.getReader();
+const decoder = new TextDecoder();
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  const text = decoder.decode(value);
+  // Parse SSE chunks...
+  console.log(text);
+}</pre>
+      </div>
+
+      <!-- ===== CURL ===== -->
+      <h2 id="curl">cURL Examples</h2>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">RAG Mode (tra cứu pháp luật)</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+        <pre>curl -X POST https://your-server.com/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer vks-YOUR_KEY" \
+  -d '{
+    "model": "qwen3:30b-a3b",
+    "messages": [{"role": "user", "content": "So sánh tội cướp và cưỡng đoạt tài sản"}],
+    "use_rag": true
+  }'</pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">Direct Mode (chat AI thẳng)</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+        <pre>curl -X POST https://your-server.com/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer vks-YOUR_KEY" \
+  -d '{
+    "model": "qwen3:30b-a3b",
+    "messages": [{"role": "user", "content": "Viết email mẫu cho tôi"}],
+    "use_rag": false
+  }'</pre>
+      </div>
+
+      <!-- ===== OPENAI SDK ===== -->
+      <h2 id="openai-sdk">OpenAI SDK Compatible</h2>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">Python — OpenAI SDK</span><button class="code-copy" onclick="copyCode(this)">Copy</button></div>
+        <pre>from openai import OpenAI
+
+client = OpenAI(
+    api_key="vks-YOUR_API_KEY",
+    base_url="https://your-server.com/v1"
+)
+
+response = client.chat.completions.create(
+    model="qwen3:30b-a3b",
+    messages=[{"role": "user", "content": "Điều 173 BLHS 2015?"}],
+    extra_body={"use_rag": True}
+)
+
+print(response.choices[0].message.content)</pre>
+      </div>
+
+      <!-- ===== ERRORS ===== -->
+      <h2 id="errors">Error Handling</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Status</th><th>Ý nghĩa</th><th>Xử lý</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge" style="background:var(--green-soft);color:var(--green);border:1px solid rgba(34,197,94,0.3)">200</span></td><td>Thành công</td><td>—</td></tr>
+            <tr><td><span class="badge required">401</span></td><td>API key không hợp lệ</td><td>Kiểm tra lại API key</td></tr>
+            <tr><td><span class="badge" style="background:var(--orange-soft);color:var(--orange);border:1px solid rgba(245,158,11,0.3)">429</span></td><td>Rate limit exceeded</td><td>Chờ 60s hoặc nâng limit</td></tr>
+            <tr><td><span class="badge required">500</span></td><td>Server error</td><td>Kiểm tra Ollama/MongoDB status</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ===== RATE LIMIT ===== -->
+      <h2 id="rate-limit">Rate Limiting</h2>
+      <p>Mỗi API key có giới hạn request/phút (mặc định: <strong>30 req/min</strong>). Có thể tùy chỉnh khi tạo key.</p>
+      <div class="callout warning">
+        <span class="callout-icon">⚠️</span>
+        <div>Khi vượt rate limit, API trả về <strong>HTTP 429</strong>. Chờ 60 giây hoặc liên hệ admin để nâng giới hạn.</div>
+      </div>
+
+      <!-- ===== ARCHITECTURE ===== -->
+      <h2 id="architecture">Kiến Trúc Hệ Thống</h2>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">Architecture</span></div>
+        <pre>
+┌─────────────┐    ┌──────────────────────────────────┐    ┌─────────────────┐
+│   Client    │───▶│        VKS Legal AI API           │───▶│  Ollama (Local)  │
+│  (Browser,  │    │  ┌─────────────────────────────┐  │    │  Qwen3-30B-A3B  │
+│   Python,   │    │  │     Agentic RAG Router       │  │    └─────────────────┘
+│   cURL)     │    │  │  Intent → Search → Answer    │  │            │
+└─────────────┘    │  └─────────────────────────────┘  │    ┌─────────────────┐
+                   │  ┌──────────┐  ┌──────────────┐   │───▶│ OpenRouter Cloud │
+                   │  │  FAISS   │  │    BM25      │   │    │ Claude/GPT/Gemini│
+                   │  │ (Vector) │  │ (Keyword)    │   │    └─────────────────┘
+                   │  └────┬─────┘  └──────┬───────┘   │
+                   │       └───── RRF ─────┘           │
+                   │  ┌─────────────────────────────┐  │
+                   │  │   178K+ Legal Documents      │  │
+                   │  │   MongoDB · Vector Store     │  │
+                   │  └─────────────────────────────┘  │
+                   └──────────────────────────────────┘</pre>
+      </div>
+
+    </div><!-- /docs-content -->
+  </main>
+</div>
+
+<script src="/static/js/docs.js"></script>
+</body>
+</html>

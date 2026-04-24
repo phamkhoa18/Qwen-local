@@ -133,6 +133,11 @@ async def home(request: Request):
     })
 
 
+@app.get("/documentation")
+async def documentation(request: Request):
+    return templates.TemplateResponse("docs.html", {"request": request})
+
+
 @app.exception_handler(404)
 async def not_found(request: Request, exc):
     return JSONResponse(status_code=404, content={"error": {"message": "Not found"}})
