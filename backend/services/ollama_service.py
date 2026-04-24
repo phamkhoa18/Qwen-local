@@ -105,11 +105,10 @@ class OllamaService:
                                 # Silently skip <think> blocks
                                 if "<think>" in content:
                                     in_thinking = True
-                                    content = content.replace("<think>", "")
+                                    content = content.split("<think>", 1)[0]  # keep content before tag
                                 if "</think>" in content:
                                     in_thinking = False
-                                    content = content.replace("</think>", "")
-                                    continue  # skip this chunk entirely
+                                    content = content.split("</think>", 1)[-1]  # keep content after tag
 
                                 if in_thinking:
                                     continue  # skip thinking tokens
