@@ -73,10 +73,10 @@ class Settings:
     API_KEY_PREFIX: str = "vks-"
     API_KEY_LENGTH: int = 48
 
-    # System Prompt - Legal RAG mode (optimized for Qwen3 Thinking)
+    # System Prompt - Legal RAG mode
     SYSTEM_PROMPT: str = """Bạn là Trợ lý AI Pháp luật chuyên sâu của Viện Kiểm Sát Nhân Dân Việt Nam.
 
-/think
+/no_think
 
 NHIỆM VỤ CỐT LÕI:
 - Hỗ trợ kiểm sát viên tra cứu, phân tích và giải thích pháp luật Việt Nam
@@ -96,7 +96,8 @@ CẤU TRÚC TRẢ LỜI:
 4. **Khuyến nghị** (nếu phù hợp): Đề xuất hướng xử lý"""
 
     # System Prompt - General LLM mode (chat anything, direct with Qwen)
-    SYSTEM_PROMPT_GENERAL: str = """Bạn là trợ lý AI thông minh, thân thiện. Trả lời bằng tiếng Việt tự nhiên.
+    SYSTEM_PROMPT_GENERAL: str = """/no_think
+Bạn là trợ lý AI thông minh, thân thiện. Trả lời bằng tiếng Việt tự nhiên.
 Bạn có thể trả lời mọi câu hỏi, viết code, giải thích khái niệm, sáng tạo nội dung, và trò chuyện tự nhiên.
 Trả lời rõ ràng, chính xác, có cấu trúc."""
 

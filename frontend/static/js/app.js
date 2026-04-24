@@ -168,14 +168,9 @@ function renderMsgs() {
         src = `<div class="sources-panel"><button class="sources-toggle" onclick="toggleSrc(this)"><svg class="icon-svg sm"><use href="#i-book"/></svg> ${m.sources.length} nguồn pháp luật <svg class="icon-svg sm"><use href="#i-chevron"/></svg></button>
         <div class="sources-list">${m.sources.map((s, j) => `<div class="source-card"><div class="sc-head">[${j + 1}] ${esc(s.title || 'Văn bản pháp luật')}</div><div class="sc-body">${esc(trunc(s.content, 300))}</div><div class="sc-score">Độ chính xác: ${(s.score * 100).toFixed(1)}%</div></div>`).join('')}</div></div>`;
       }
-      // Thinking section (Qwen3 reasoning)
-      let thinkHtml = '';
-      if (m.thinking) {
-        thinkHtml = `<div class="thinking-panel"><button class="thinking-toggle" onclick="toggleThink(this)"><span class="think-icon">🧠</span> Quá trình suy luận <svg class="icon-svg sm"><use href="#i-chevron"/></svg></button><div class="thinking-content">${esc(m.thinking)}</div></div>`;
-      }
       const lb = m.mode === 'llm' ? 'AI Trực tiếp' : 'Trợ lý Pháp luật';
       const agentBadge = m.agent ? `<span style="margin-left:8px;padding:2px 8px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:10px;font-size:10px;color:#818cf8;font-weight:600;">🤖 Agent: ${m.agent.intent} · ${m.agent.total_sources} nguồn</span>` : '';
-      return `<div class="msg assistant"><div class="msg-label"><svg class="icon-svg sm"><use href="#i-scales"/></svg> ${lb}${agentBadge}</div>${thinkHtml}<div class="msg-body">${fmtMd(m.content)}</div>${src}</div>`;
+      return `<div class="msg assistant"><div class="msg-label"><svg class="icon-svg sm"><use href="#i-scales"/></svg> ${lb}${agentBadge}</div><div class="msg-body">${fmtMd(m.content)}</div>${src}</div>`;
     }
     return '';
   }).join('');
@@ -216,12 +211,10 @@ async function doChat(text) {
 
   const reader = res.body.getReader();
   const dec = new TextDecoder();
-  let aMsg = { role: 'assistant', content: '', thinking: '', sources: [], mode: S.mode };
+  let aMsg = { role: 'assistant', content: '', sources: [], mode: S.mode };
   S.msgs.push(aMsg); showTyping(false); renderMsgs();
 
   let buf = '';
-  let isThinking = false;
-
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -236,23 +229,7 @@ async function doChat(text) {
       try {
         const p = JSON.parse(raw);
         if (p.sources) { aMsg.sources = p.sources; if (p.agent) aMsg.agent = p.agent; renderMsgs(); continue; }
-
-        const delta = p.choices?.[0]?.delta;
-        if (!delta) continue;
-
-        // Handle thinking mode signals
-        if (delta.role === 'thinking') { isThinking = true; updateThinkingUI(aMsg, true); continue; }
-        if (delta.role === 'answer') { isThinking = false; updateThinkingUI(aMsg, false); continue; }
-
-        // Thinking content (Qwen3 internal reasoning)
-        if (delta.thinking) {
-          aMsg.thinking += delta.thinking;
-          updateThinkingUI(aMsg, true);
-          continue;
-        }
-
-        // Normal answer content
-        const c = delta.content;
+        const c = p.choices?.[0]?.delta?.content;
         if (c) { 
           aMsg.content += c; 
           const bodies = document.querySelectorAll('.msg.assistant .msg-body');
@@ -266,41 +243,6 @@ async function doChat(text) {
       } catch (e) { }
     }
   }
-}
-
-function updateThinkingUI(msg, isActive) {
-  const panels = document.querySelectorAll('.msg.assistant .thinking-panel');
-  const lastMsg = document.querySelectorAll('.msg.assistant');
-  if (!lastMsg.length) return;
-  const last = lastMsg[lastMsg.length - 1];
-  let panel = last.querySelector('.thinking-panel');
-  
-  if (!panel && msg.thinking) {
-    // Create thinking panel if doesn't exist
-    const label = last.querySelector('.msg-label');
-    if (label) {
-      const div = document.createElement('div');
-      div.className = 'thinking-panel';
-      div.innerHTML = `<button class="thinking-toggle active" onclick="toggleThink(this)"><span class="think-icon">🧠</span> Đang suy luận... <svg class="icon-svg sm"><use href="#i-chevron"/></svg></button><div class="thinking-content open">${esc(msg.thinking)}</div>`;
-      label.insertAdjacentElement('afterend', div);
-    }
-  } else if (panel) {
-    const content = panel.querySelector('.thinking-content');
-    const toggle = panel.querySelector('.thinking-toggle');
-    if (content) content.textContent = msg.thinking;
-    if (!isActive && toggle) {
-      toggle.innerHTML = `<span class="think-icon">🧠</span> Quá trình suy luận <svg class="icon-svg sm"><use href="#i-chevron"/></svg>`;
-      toggle.classList.remove('active');
-      if (content) content.classList.remove('open');
-    }
-  }
-  scrollDown();
-}
-
-function toggleThink(btn) { 
-  const content = btn.nextElementSibling;
-  content.classList.toggle('open'); 
-  btn.classList.toggle('open'); 
 }
 
 async function doSearch(query) {
@@ -348,9 +290,36 @@ async function createKey() {
   try {
     const r = await fetch('/admin/api-keys', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${S.token}` }, body: JSON.stringify({ name }) });
     const d = await r.json();
-    if (d.key) { alert('API Key mới:\n\n' + d.key + '\n\nVui lòng lưu lại!'); }
-    await openApiKeysModal();
-  } catch (e) { alert('Lỗi: ' + e.message); }
+    if (d.key) {
+      // Show beautiful key popup instead of alert
+      document.getElementById('modal-content').innerHTML = `
+        <div style="text-align:center;padding:8px 0 16px;">
+          <div style="width:56px;height:56px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 4px 16px rgba(34,197,94,0.3);">
+            <svg style="width:28px;height:28px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h3 style="font-size:18px;font-weight:700;margin-bottom:4px;">Tạo API Key Thành Công!</h3>
+          <p style="color:var(--text-secondary);font-size:13px;margin-bottom:20px;">Key: <strong>${esc(name)}</strong></p>
+        </div>
+        <div style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:12px;position:relative;">
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:8px;">🔑 API Key của bạn</div>
+          <code id="new-key-value" style="font-family:'JetBrains Mono',monospace;font-size:12px;word-break:break-all;line-height:1.6;color:var(--accent);display:block;">${esc(d.key)}</code>
+          <button onclick="copyNewKey()" id="copy-key-btn" style="position:absolute;top:12px;right:12px;padding:5px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">Sao chép</button>
+        </div>
+        <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-sm);padding:12px 16px;display:flex;gap:10px;align-items:flex-start;">
+          <span style="font-size:16px;flex-shrink:0;">⚠️</span>
+          <div style="font-size:12px;color:#fbbf24;line-height:1.5;"><strong>Quan trọng:</strong> Đây là lần duy nhất key được hiển thị đầy đủ. Hãy sao chép và lưu trữ an toàn ngay bây giờ!</div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;margin-top:16px;" onclick="openApiKeysModal()">Đã lưu, quay lại</button>`;
+      document.getElementById('modal-title').textContent = '✅ Tạo Key Thành Công';
+    }
+  } catch (e) {
+    document.getElementById('modal-content').innerHTML = `
+      <div style="text-align:center;padding:20px 0;">
+        <div style="font-size:40px;margin-bottom:12px;">❌</div>
+        <p style="color:var(--red);font-size:14px;">Lỗi: ${esc(e.message)}</p>
+        <button class="btn btn-primary" style="margin-top:16px;" onclick="openApiKeysModal()">Thử lại</button>
+      </div>`;
+  }
 }
 async function revokeKey(id) {
   if (!confirm('Thu hồi API key này?')) return;
@@ -446,6 +415,15 @@ async function adminLogin() {
 function clearAll() { if (!confirm('Xóa tất cả cuộc trò chuyện?')) return; S.convs = []; S.convId = null; S.msgs = []; saveConvs(); renderConvs(); renderMsgs(); closeModal(); }
 
 // ===== HELPERS =====
+function copyNewKey() {
+  const key = document.getElementById('new-key-value').textContent;
+  navigator.clipboard.writeText(key).then(() => {
+    const btn = document.getElementById('copy-key-btn');
+    btn.textContent = '✓ Đã sao chép!';
+    btn.style.background = '#16a34a';
+    setTimeout(() => { btn.textContent = 'Sao chép'; btn.style.background = ''; }, 2000);
+  });
+}
 function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function trunc(s, n) { return s && s.length > n ? s.substring(0, n) + '...' : s || ''; }
 function fmtMd(t) { 

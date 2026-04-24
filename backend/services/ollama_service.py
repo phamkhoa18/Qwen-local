@@ -1,6 +1,6 @@
 """
-Ollama service - streaming chat completions with Qwen3 Thinking Mode
-Handles <think>...</think> reasoning tags for better accuracy
+Ollama service - streaming chat completions
+Silently strips any <think>...</think> tags from Qwen3 output
 """
 import httpx
 import json
@@ -11,21 +11,9 @@ from typing import AsyncGenerator, List, Dict
 from backend.config import settings
 
 
-def strip_thinking(text: str) -> tuple:
-    """
-    Separate <think>reasoning</think> from the final answer.
-    Returns (thinking_content, clean_answer)
-    """
-    thinking = ""
-    clean = text
-
-    # Extract all <think> blocks
-    think_matches = re.findall(r'<think>(.*?)</think>', text, re.DOTALL)
-    if think_matches:
-        thinking = "\n".join(m.strip() for m in think_matches)
-        clean = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
-
-    return thinking, clean
+def strip_thinking(text: str) -> str:
+    """Remove any <think>...</think> blocks from output"""
+    return re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
 
 
 class OllamaService:
@@ -51,11 +39,8 @@ class OllamaService:
             pass
         return []
 
-    async def chat(self, messages, model=None, temperature=0.3, top_p=0.8, max_tokens=8192, stop=None, enable_thinking=True):
-        """
-        Non-streaming chat. enable_thinking=True lets Qwen3 reason before answering.
-        The <think> block is stripped from the final response but returned separately.
-        """
+    async def chat(self, messages, model=None, temperature=0.3, top_p=0.8, max_tokens=8192, stop=None):
+        """Non-streaming chat completion"""
         model = model or settings.DEFAULT_MODEL
         payload = {
             "model": model,
@@ -72,33 +57,23 @@ class OllamaService:
             data = r.json()
 
         raw_text = data.get("message", {}).get("content", "")
-
-        # Process thinking
-        thinking, clean_text = strip_thinking(raw_text)
-        if thinking:
-            print(f"[THINK] Qwen3 reasoning: {thinking[:200]}...")
+        text = strip_thinking(raw_text)
 
         return {
             "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
             "object": "chat.completion",
             "created": int(time.time()),
             "model": model,
-            "choices": [{"index": 0, "message": {"role": "assistant", "content": clean_text}, "finish_reason": "stop"}],
+            "choices": [{"index": 0, "message": {"role": "assistant", "content": text}, "finish_reason": "stop"}],
             "usage": {
                 "prompt_tokens": data.get("prompt_eval_count", 0),
                 "completion_tokens": data.get("eval_count", len(raw_text) // 4),
                 "total_tokens": data.get("prompt_eval_count", 0) + data.get("eval_count", len(raw_text) // 4)
             },
-            "thinking": thinking if thinking else None,
         }
 
-    async def chat_stream(self, messages, model=None, temperature=0.3, top_p=0.8, max_tokens=8192, stop=None, enable_thinking=True) -> AsyncGenerator[str, None]:
-        """
-        Streaming chat with Qwen3 Thinking Mode support.
-        - <think> blocks are sent as special "thinking" delta events
-        - Clean answer tokens are sent as normal "content" delta events
-        - Frontend can show/hide thinking separately
-        """
+    async def chat_stream(self, messages, model=None, temperature=0.3, top_p=0.8, max_tokens=8192, stop=None) -> AsyncGenerator[str, None]:
+        """Streaming chat — silently skips any <think> blocks"""
         model = model or settings.DEFAULT_MODEL
         chat_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
 
@@ -117,8 +92,6 @@ class OllamaService:
                     response.raise_for_status()
 
                     in_thinking = False
-                    thinking_buffer = ""
-                    sent_thinking_start = False
 
                     async for line in response.aiter_lines():
                         if not line.strip():
@@ -129,60 +102,36 @@ class OllamaService:
                             done = data.get("done", False)
 
                             if content:
-                                # Detect <think> opening tag
+                                # Silently skip <think> blocks
                                 if "<think>" in content:
                                     in_thinking = True
-                                    # Remove the <think> tag from content
                                     content = content.replace("<think>", "")
-                                    if not sent_thinking_start:
-                                        # Signal to frontend that thinking has started
-                                        think_signal = json.dumps({
-                                            "id": chat_id, "object": "chat.completion.chunk",
-                                            "created": int(time.time()), "model": model,
-                                            "choices": [{"index": 0, "delta": {"role": "thinking"}, "finish_reason": None}],
-                                        })
-                                        yield f"data: {think_signal}\n\n"
-                                        sent_thinking_start = True
-
-                                # Detect </think> closing tag
                                 if "</think>" in content:
                                     in_thinking = False
                                     content = content.replace("</think>", "")
-                                    thinking_buffer += content
-                                    # Signal thinking ended
-                                    think_end = json.dumps({
-                                        "id": chat_id, "object": "chat.completion.chunk",
-                                        "created": int(time.time()), "model": model,
-                                        "choices": [{"index": 0, "delta": {"role": "answer"}, "finish_reason": None}],
-                                    })
-                                    yield f"data: {think_end}\n\n"
-                                    continue
+                                    continue  # skip this chunk entirely
 
                                 if in_thinking:
-                                    # Accumulate thinking but don't send as main content
-                                    thinking_buffer += content
-                                    # Send as thinking delta (frontend can choose to show/hide)
+                                    continue  # skip thinking tokens
+
+                                # Only send actual answer content
+                                if content.strip():
                                     chunk = json.dumps({
-                                        "id": chat_id, "object": "chat.completion.chunk",
-                                        "created": int(time.time()), "model": model,
-                                        "choices": [{"index": 0, "delta": {"thinking": content}, "finish_reason": None}],
+                                        "id": chat_id,
+                                        "object": "chat.completion.chunk",
+                                        "created": int(time.time()),
+                                        "model": model,
+                                        "choices": [{"index": 0, "delta": {"content": content}, "finish_reason": None}]
                                     })
                                     yield f"data: {chunk}\n\n"
-                                else:
-                                    # Normal answer content
-                                    if content.strip():
-                                        chunk = json.dumps({
-                                            "id": chat_id, "object": "chat.completion.chunk",
-                                            "created": int(time.time()), "model": model,
-                                            "choices": [{"index": 0, "delta": {"content": content}, "finish_reason": None}],
-                                        })
-                                        yield f"data: {chunk}\n\n"
 
                             if done:
                                 final = json.dumps({
-                                    "id": chat_id, "object": "chat.completion.chunk",
-                                    "created": int(time.time()), "model": model,
-                                    "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                                    "id": chat_id,
+                                    "object": "chat.completion.chunk",
+                                    "created": int(time.time()),
+                                    "model": model,
+                                    "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]
                                 })
                                 yield f"data: {final}\n\n"
                                 yield "data: [DONE]\n\n"
@@ -193,9 +142,11 @@ class OllamaService:
             error_msg = f"Lỗi kết nối đến Qwen3 (Ollama): {str(e)}"
             print(f"[ERROR] {error_msg}")
             error_chunk = json.dumps({
-                "id": chat_id, "object": "chat.completion.chunk",
-                "created": int(time.time()), "model": model,
-                "choices": [{"index": 0, "delta": {"content": f"\n\n**HỆ THỐNG BÁO LỖI:** {error_msg}"}, "finish_reason": "stop"}],
+                "id": chat_id,
+                "object": "chat.completion.chunk",
+                "created": int(time.time()),
+                "model": model,
+                "choices": [{"index": 0, "delta": {"content": f"\n\n**HỆ THỐNG BÁO LỖI:** {error_msg}"}, "finish_reason": "stop"}]
             })
             yield f"data: {error_chunk}\n\n"
             yield "data: [DONE]\n\n"
